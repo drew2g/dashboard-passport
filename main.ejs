@@ -1,0 +1,10 @@
+<h1>Welcome, <%= user.email%>!</h1>
+<p>If you are viewing this page, you are logged in! Congrats!</p>
+
+<%if (user.admin) { %>
+  <p>You are an administrator</p>
+<% } %>
+
+<form action="/logout">
+    <input type="submit" value="Log out" />
+</form>

@@ -1,4 +1,3 @@
-//var app = connect();
 const routes = require('express').Router();
 
 var fs = require('fs')
@@ -35,6 +34,47 @@ passport.use(new LocalStrategy(
   }
 ));
 
+function requireAdmin() {
+  return function(req, res, next) {
+    var good = true
+    User.findOne({ email:req.body.email }, function(err, user) {
+      if (err) { return next(err); }
+      console.log(user)
+      if (!user) {
+        console.log(req.body.email+" does not exist")
+        good = false
+        res.status(401).json({error: 'You are not authorized to view this content'});
+      }
+      if (!user.admin) {
+        console.log(req.body.email+" is not an admin")
+        good = false
+        res.status(401).json({error: 'You are not authorized to view this content'});
+      }
+      if(good) {
+        next();
+      }
+    });
+  }
+}
+
+function loggedIn(req, res, next) {
+  console.log(req)
+  if(req)
+  {
+    if (req.user) {
+        console.log(req.user)
+        next();
+    } else {
+        res.redirect('/login');
+    }
+  }
+}
+
+function includeMessages(req, res, next) {
+  res.locals.messages = require('express-messages')(req, res);
+  next();
+};
+
 routes.use(require('cookie-parser')());
 routes.use(require('body-parser').urlencoded({ extended: true }));
 routes.use(require('express-session')({ secret: 'keyboard cat', resave: false, saveUninitialized: false }));
@@ -65,17 +105,29 @@ passport.deserializeUser(function(id, done) {
   });
 });
 
-
 routes.get('/test', (req, res) => {
   res.status(200).json({
     message: 'Connected!'
   });
 });
 
+routes.get('/', loggedIn, includeMessages, (req, res) => {
+  res.render('main', {user: req.user})
+});
+
 routes.get('/login', (req, res) => {
   fs.readFile('./login.html', 'utf8', async function read(err, html) {
     res.status(200).send(html);
   })
+});
+
+routes.get('/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
+});
+
+routes.get('/admin', (req, res) => {
+  res.render('loginasadmin', {expressFlash: ""})
 });
 
 routes.get('/register', (req, res) => {
@@ -94,21 +146,24 @@ routes.post('/register', (req,res) => {
   var temp = new User({email:email, password:pass})
   temp.save()
   passport.authenticate('local', { successRedirect: '/',
-                                   failureRedirect: '/test',
+                                   failureRedirect: '/login',
                                    failureFlash: 'failed',
                                    successFlash: 'WIN'})
-  res.status(200).send({"hi":email})
 })
 
 routes.post('/login',
+  passport.authenticate('local', { successRedirect: '/',
+                                   failureRedirect: '/login',
+                                   failureFlash: 'failed',
+                                   successFlash: 'WIN' })
+);
+
+routes.post('/loginasadmin',
+requireAdmin(),
   passport.authenticate('local', { successRedirect: '/',
                                    failureRedirect: '/test',
                                    failureFlash: 'failed',
                                    successFlash: 'WIN' })
 );
-
-
-
-
 
 module.exports = routes;

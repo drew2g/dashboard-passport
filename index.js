@@ -10,5 +10,8 @@ var app = express();
 mongoose.connect('mongodb://localhost/Users');
 
 app.use('/', routes);
+app.set('views', __dirname);
+app.set('view engine', 'ejs');
+
 
 app.listen(9000, () => console.log('PassportJS test project running on port 9000!'));
