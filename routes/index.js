@@ -57,6 +57,31 @@ function requireAdmin() {
   }
 }
 
+function loggedInAsAdmin(req, res, next) {
+  console.log(req)
+  var good = false
+  if (req) {
+    if (req.user) {
+      if (req.user.admin) {
+        good = true
+        next();
+      } else {
+        res.status(401).json({
+          error: 'You are not authorized to view this content'
+        });
+      }
+    } else {
+      res.status(401).json({
+        error: 'You are not authorized to view this content'
+      });
+    }
+  } else {
+    res.status(401).json({
+      error: 'You are not authorized to view this content'
+    });
+  }
+}
+
 function loggedIn(req, res, next) {
   console.log(req)
   if(req)
@@ -81,17 +106,6 @@ routes.use(require('express-session')({ secret: 'keyboard cat', resave: false, s
 routes.use(passport.initialize());
 routes.use(passport.session());
 routes.use(flash())
-
-passport.serializeUser(function(user, cb) {
-  cb(null, user.id);
-});
-
-passport.deserializeUser(function(id, cb) {
-  User.findById(id, function (err, user) {
-    if (err) { return cb(err); }
-    cb(null, user);
-  });
-});
 
 passport.serializeUser(function(user, done) {
   console.log("serializing...")
@@ -136,19 +150,24 @@ routes.get('/register', (req, res) => {
   })
 });
 
-routes.post('/register', (req,res) => {
+app.post('/register', (req, res) => {
   var email = req.body.email
   var pass = req.body.password
 
-  console.log(email)
-  console.log(pass)
+  var temp = new User({
+    email: email,
+    password: pass
+  })
+  temp.save().then((doc) => {
+    req.login(temp, function(err) {
+      if (!err) {
+        res.redirect('/');
+      } else {
+        console.log(err)
+      }
+    })
+  })
 
-  var temp = new User({email:email, password:pass})
-  temp.save()
-  passport.authenticate('local', { successRedirect: '/',
-                                   failureRedirect: '/login',
-                                   failureFlash: 'failed',
-                                   successFlash: 'WIN'})
 })
 
 routes.post('/login',
