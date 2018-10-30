@@ -12,24 +12,37 @@ var session = require('express-session')
 var bodyParser = require('body-parser')
 User = userSchema.User_model();
 
-passport.use(new LocalStrategy(
-  {
+passport.use(new LocalStrategy({
     usernameField: 'email',
     passwordField: 'password'
   },
   function(email, password, done) {
     console.log("verifying...")
-    User.findOne({ email: email }, function(err, user) {
-      if (err) { console.log(err); return done(err); }
+    User.findOne({
+      email: email
+    }, function(err, user) {
+      if (err) {
+        console.log(err);
+        return done(err);
+      }
       if (!user) {
         console.log("no such user")
-        return done(null, false, { message: 'Incorrect email.' });
+        return done(null, false, {
+          message: 'Incorrect email.'
+        });
       }
-      if (user.password != password) {
-        console.log("no such password")
-        return done(null, false, { message: 'Incorrect password.' });
-      }
-      return done(null, user);
+      console.log("USER!!!!!!!!!: "+user)
+      userSchema.comparePassword(password, user.password, function(err, isMatch) {
+        if (err) {
+          return done(err);
+        }
+        if (!isMatch) {
+          return done(null, false, {
+            message: 'Login failed. Please try again.'
+          });
+        }
+        return done(null, user);
+      });
     });
   }
 ));
@@ -37,20 +50,27 @@ passport.use(new LocalStrategy(
 function requireAdmin() {
   return function(req, res, next) {
     var good = true
-    User.findOne({ email:req.body.email }, function(err, user) {
-      if (err) { return next(err); }
-      console.log(user)
+    User.findOne({
+      email: req.body.email
+    }, function(err, user) {
+      if (err) {
+        return next(err);
+      }
       if (!user) {
-        console.log(req.body.email+" does not exist")
+        console.log(req.body.email + " does not exist")
         good = false
-        res.status(401).json({error: 'You are not authorized to view this content'});
+        res.status(401).json({
+          error: 'You are not authorized to view this content'
+        });
       }
       if (!user.admin) {
-        console.log(req.body.email+" is not an admin")
+        console.log(req.body.email + " is not an admin")
         good = false
-        res.status(401).json({error: 'You are not authorized to view this content'});
+        res.status(401).json({
+          error: 'You are not authorized to view this content'
+        });
       }
-      if(good) {
+      if (good) {
         next();
       }
     });
@@ -84,13 +104,12 @@ function loggedInAsAdmin(req, res, next) {
 
 function loggedIn(req, res, next) {
   console.log(req)
-  if(req)
-  {
+  if (req) {
     if (req.user) {
-        console.log(req.user)
-        next();
+      console.log(req.user)
+      next();
     } else {
-        res.redirect('/login');
+      res.redirect('/login');
     }
   }
 }
@@ -101,8 +120,14 @@ function includeMessages(req, res, next) {
 };
 
 routes.use(require('cookie-parser')());
-routes.use(require('body-parser').urlencoded({ extended: true }));
-routes.use(require('express-session')({ secret: 'keyboard cat', resave: false, saveUninitialized: false }));
+routes.use(require('body-parser').urlencoded({
+  extended: true
+}));
+routes.use(require('express-session')({
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: false
+}));
 routes.use(passport.initialize());
 routes.use(passport.session());
 routes.use(flash())
@@ -126,7 +151,9 @@ routes.get('/test', (req, res) => {
 });
 
 routes.get('/', loggedIn, includeMessages, (req, res) => {
-  res.render('main', {user: req.user})
+  res.render('main', {
+    user: req.user
+  })
 });
 
 routes.get('/login', (req, res) => {
@@ -135,13 +162,15 @@ routes.get('/login', (req, res) => {
   })
 });
 
-routes.get('/logout', function(req, res){
+routes.get('/logout', function(req, res) {
   req.logout();
   res.redirect('/');
 });
 
 routes.get('/admin', (req, res) => {
-  res.render('loginasadmin', {expressFlash: ""})
+  res.render('loginasadmin', {
+    expressFlash: ""
+  })
 });
 
 routes.get('/register', (req, res) => {
@@ -150,7 +179,7 @@ routes.get('/register', (req, res) => {
   })
 });
 
-app.post('/register', (req, res) => {
+routes.post('/register', (req, res) => {
   var email = req.body.email
   var pass = req.body.password
 
@@ -171,18 +200,22 @@ app.post('/register', (req, res) => {
 })
 
 routes.post('/login',
-  passport.authenticate('local', { successRedirect: '/',
-                                   failureRedirect: '/login',
-                                   failureFlash: 'failed',
-                                   successFlash: 'WIN' })
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login',
+    failureFlash: 'failed',
+    successFlash: 'WIN'
+  })
 );
 
 routes.post('/loginasadmin',
-requireAdmin(),
-  passport.authenticate('local', { successRedirect: '/',
-                                   failureRedirect: '/test',
-                                   failureFlash: 'failed',
-                                   successFlash: 'WIN' })
+  requireAdmin(),
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/test',
+    failureFlash: 'failed',
+    successFlash: 'WIN'
+  })
 );
 
 module.exports = routes;
